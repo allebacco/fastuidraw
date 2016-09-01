@@ -144,6 +144,13 @@ public:
   number_contours(void) const;
 
   /*!
+    Returns true if the named contour is defined
+    only by a single point.
+   */
+  bool
+  contour_is_degenerate(unsigned int contour) const;
+
+  /*!
     Returns the range into point_data()
     for the named contour. The contour data is a
     sequence of lines. Points that are shared

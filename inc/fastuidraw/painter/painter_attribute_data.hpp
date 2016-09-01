@@ -63,6 +63,7 @@ namespace fastuidraw
 
         rounded_cap, /*!< index for rounded cap data */
         square_cap,  /*!< index for square cap data */
+        flat_cap,    /*!< index for flat cap data */
 
         stroking_data_count /*!< count of enums */
       };

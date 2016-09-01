@@ -135,6 +135,7 @@ namespace
   public:
     std::vector<fastuidraw::vec2> m_edge_begin_normal, m_edge_end_normal;
     fastuidraw::vec2 m_begin_cap_normal, m_end_cap_normal;
+    bool m_degenerate;
   };
 
   class EdgeDataCreator
@@ -424,9 +425,12 @@ namespace
             unsigned int &vertex_offset,
             unsigned int &index_offset) const = 0;
 
+    virtual
+    bool
+    take_degenerate_contours(void) const = 0;
+
     const fastuidraw::TessellatedPath &m_P;
     PointIndexCapSize m_size;
-
   };
 
   class RoundedCapCreator:public CapCreatorBase
@@ -451,22 +455,29 @@ namespace
             unsigned int &vertex_offset,
             unsigned int &index_offset) const;
 
+    virtual
+    bool
+    take_degenerate_contours(void) const
+    {
+      return true;
+    }
+
     float m_delta_theta;
     unsigned int m_num_arc_points_per_cap;
   };
 
-  class SquareCapCreator:public CapCreatorBase
+  class FlatSquareCapCreator:public CapCreatorBase
   {
   public:
-    SquareCapCreator(const fastuidraw::TessellatedPath &P):
-      CapCreatorBase(P, compute_size(P))
+    FlatSquareCapCreator(const fastuidraw::TessellatedPath &P,
+                         enum fastuidraw::StrokedPath::point_type_t tp,
+                         PointIndexCapSize sz):
+      CapCreatorBase(P, sz),
+      m_tp(tp)
     {
     }
 
   private:
-
-    PointIndexCapSize
-    compute_size(const fastuidraw::TessellatedPath &P);
 
     void
     add_cap(const fastuidraw::vec2 &normal_from_stroking,
@@ -476,6 +487,52 @@ namespace
             fastuidraw::c_array<unsigned int> indices,
             unsigned int &vertex_offset,
             unsigned int &index_offset) const;
+
+    enum fastuidraw::StrokedPath::point_type_t m_tp;
+  };
+
+  class SquareCapCreator:public FlatSquareCapCreator
+  {
+  public:
+    SquareCapCreator(const fastuidraw::TessellatedPath &P):
+      FlatSquareCapCreator(P, fastuidraw::StrokedPath::square_cap_point,
+                           compute_size(P))
+    {}
+
+  private:
+
+    static
+    PointIndexCapSize
+    compute_size(const fastuidraw::TessellatedPath &P);
+
+    virtual
+    bool
+    take_degenerate_contours(void) const
+    {
+      return true;
+    }
+  };
+
+  class FlatCapCreator:public FlatSquareCapCreator
+  {
+  public:
+    FlatCapCreator(const fastuidraw::TessellatedPath &P):
+      FlatSquareCapCreator(P, fastuidraw::StrokedPath::flat_cap_point,
+                           compute_size(P))
+    {}
+
+  private:
+
+    static
+    PointIndexCapSize
+    compute_size(const fastuidraw::TessellatedPath &P);
+
+    virtual
+    bool
+    take_degenerate_contours(void) const
+    {
+      return false;
+    }
   };
 
   class MiterJoinCreator:public JoinCreatorBase
@@ -638,6 +695,7 @@ namespace
 
     CapData m_rounded_cap;
     CapData m_square_cap;
+    CapData m_flat_cap;
 
     fastuidraw::vecN<DataAsCArraysPair, fastuidraw::StrokedPath::number_point_set_types> m_return_values;
     fastuidraw::PainterAttributeData *m_attribute_data;
@@ -791,6 +849,7 @@ compute_size(void)
 {
   for(unsigned int o = 0; o < m_P.number_contours(); ++o)
     {
+      m_per_contour_data[o].m_degenerate = m_P.contour_is_degenerate(o);
       m_per_contour_data[o].m_edge_begin_normal.resize(m_P.number_edges(o), fastuidraw::vec2(999,999));
       m_per_contour_data[o].m_edge_end_normal.resize(m_P.number_edges(o), fastuidraw::vec2(111,111));
       for(unsigned int e = 0; e < m_P.number_edges(o); ++e)
@@ -1452,27 +1511,30 @@ fill_data(const EdgeDataCreator &edge_creator,
 
   for(unsigned int o = 0; o < m_P.number_contours(); ++o)
     {
-      add_cap(edge_creator.per_contour_data(o).m_begin_cap_normal,
-              true, m_P.unclosed_contour_point_data(o).front(),
-              pts, indices,
-              vertex_offset, index_offset);
-
-      for(; v < vertex_offset; ++v)
+      if(take_degenerate_contours() || !edge_creator.per_contour_data(o).m_degenerate)
         {
-          pts[v].m_depth = depth;
-          ++depth;
-        }
+          add_cap(edge_creator.per_contour_data(o).m_begin_cap_normal,
+                  true, m_P.unclosed_contour_point_data(o).front(),
+                  pts, indices,
+                  vertex_offset, index_offset);
 
-      add_cap(edge_creator.per_contour_data(o).m_end_cap_normal,
-              false, m_P.unclosed_contour_point_data(o).back(),
-              pts, indices,
-              vertex_offset, index_offset);
+          for(; v < vertex_offset; ++v)
+            {
+              pts[v].m_depth = depth;
+              ++depth;
+            }
 
-      assert(depth >= 1);
-      for(; v < vertex_offset; ++v)
-        {
-          pts[v].m_depth = depth;
-          ++depth;
+          add_cap(edge_creator.per_contour_data(o).m_end_cap_normal,
+                  false, m_P.unclosed_contour_point_data(o).back(),
+                  pts, indices,
+                  vertex_offset, index_offset);
+
+          assert(depth >= 1);
+          for(; v < vertex_offset; ++v)
+            {
+              pts[v].m_depth = depth;
+              ++depth;
+            }
         }
     }
 
@@ -1578,6 +1640,32 @@ add_cap(const fastuidraw::vec2 &normal_from_stroking,
     }
 }
 
+//////////////////////////////////////////////////
+// FlatCapCreator methods
+PointIndexCapSize
+FlatCapCreator::
+compute_size(const fastuidraw::TessellatedPath &P)
+{
+  PointIndexCapSize return_value;
+  unsigned int num_caps(0);
+
+  for(unsigned int c = 0; c < P.number_contours(); ++c)
+    {
+      if(!P.contour_is_degenerate(c))
+        {
+          ++num_caps;
+        }
+    }
+
+  /* each flat cap generates 6 new points
+     and 3 triangles (= 9 indices)
+   */
+  num_caps *= 2;
+  return_value.verts() = 5 * num_caps;
+  return_value.indices() = 9 * num_caps;
+
+  return return_value;
+}
 
 ///////////////////////////////////////////////////
 // SquareCapCreator methods
@@ -1588,7 +1676,7 @@ compute_size(const fastuidraw::TessellatedPath &P)
   PointIndexCapSize return_value;
   unsigned int num_caps;
 
-  /* each square cap generates 5 new points
+  /* each square cap generates 6 new points
      and 3 triangles (= 9 indices)
    */
   num_caps = 2 * P.number_contours();
@@ -1598,8 +1686,11 @@ compute_size(const fastuidraw::TessellatedPath &P)
   return return_value;
 }
 
+
+///////////////////////////////////////////////////
+// FlatSquareCapCreator methods
 void
-SquareCapCreator::
+FlatSquareCapCreator::
 add_cap(const fastuidraw::vec2 &normal_from_stroking,
         bool is_starting_cap,
         const fastuidraw::TessellatedPath::point &p,
@@ -1637,7 +1728,7 @@ add_cap(const fastuidraw::vec2 &normal_from_stroking,
   pts[vertex_offset].m_distance_from_contour_start = p.m_distance_from_contour_start;
   pts[vertex_offset].m_on_boundary = 1;
   pts[vertex_offset].m_auxilary_offset = C.m_v;
-  pts[vertex_offset].m_tag = fastuidraw::StrokedPath::square_cap_point;
+  pts[vertex_offset].m_tag = m_tp;
   ++vertex_offset;
 
   pts[vertex_offset].m_position = C.m_p;
@@ -1646,7 +1737,7 @@ add_cap(const fastuidraw::vec2 &normal_from_stroking,
   pts[vertex_offset].m_distance_from_contour_start = p.m_distance_from_contour_start;
   pts[vertex_offset].m_on_boundary = 1;
   pts[vertex_offset].m_auxilary_offset = C.m_v;
-  pts[vertex_offset].m_tag = fastuidraw::StrokedPath::square_cap_point;
+  pts[vertex_offset].m_tag = m_tp;
   ++vertex_offset;
 
   pts[vertex_offset].m_position = C.m_p;
@@ -1882,11 +1973,18 @@ StrokedPathPrivate(const fastuidraw::TessellatedPath &P):
                                              fastuidraw::make_c_array(m_square_cap.m_points),
                                              fastuidraw::make_c_array(m_square_cap.m_indices));
 
+  FlatCapCreator fc(P);
+  m_flat_cap.resize(fc.sizes());
+  m_flat_cap.m_number_depth = fc.fill_data(e,
+                                           fastuidraw::make_c_array(m_flat_cap.m_points),
+                                           fastuidraw::make_c_array(m_flat_cap.m_indices));
+
   m_bevel_joins.compute_conveniance(m_return_values[fastuidraw::StrokedPath::bevel_join_point_set]);
   m_rounded_joins.compute_conveniance(m_return_values[fastuidraw::StrokedPath::rounded_join_point_set]);
   m_miter_joins.compute_conveniance(m_return_values[fastuidraw::StrokedPath::miter_join_point_set]);
-  m_rounded_cap.compute_conveniance(m_return_values[fastuidraw::StrokedPath::square_cap_point_set]);
-  m_square_cap.compute_conveniance(m_return_values[fastuidraw::StrokedPath::rounded_cap_point_set]);
+  m_rounded_cap.compute_conveniance(m_return_values[fastuidraw::StrokedPath::rounded_cap_point_set]);
+  m_square_cap.compute_conveniance(m_return_values[fastuidraw::StrokedPath::square_cap_point_set]);
+  m_flat_cap.compute_conveniance(m_return_values[fastuidraw::StrokedPath::flat_cap_point_set]);
   m_edges.compute_conveniance(m_return_values[fastuidraw::StrokedPath::edge_point_set]);
 }
 

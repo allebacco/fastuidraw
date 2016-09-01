@@ -136,6 +136,7 @@ namespace
     fastuidraw::vec2 m_start_pt;
     std::vector<fastuidraw::vec2> m_current_control_points;
     fastuidraw::reference_counted_ptr<const fastuidraw::PathContour::interpolator_base> m_end_to_start;
+    bool m_is_degenerate;
     std::vector<fastuidraw::reference_counted_ptr<const fastuidraw::PathContour::interpolator_base> > m_interpolators;
   };
 
@@ -818,6 +819,11 @@ end_generic(reference_counted_ptr<const interpolator_base> p)
       to_generic(p);
       h = FASTUIDRAWnew flat(p, p->end_pt());
       p = h;
+      d->m_is_degenerate = true;
+    }
+  else
+    {
+      d->m_is_degenerate = false;
     }
 
   /* hack-evil: we are going to replace m_interpolator[0]
@@ -930,8 +936,16 @@ ended(void) const
 {
   PathContourPrivate *d;
   d = reinterpret_cast<PathContourPrivate*>(m_d);
-
   return d->m_end_to_start;
+}
+
+bool
+fastuidraw::PathContour::
+is_degenerate(void) const
+{
+  PathContourPrivate *d;
+  d = reinterpret_cast<PathContourPrivate*>(m_d);
+  return d->m_end_to_start && d->m_is_degenerate;
 }
 
 /////////////////////////////////////////

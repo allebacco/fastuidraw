@@ -1177,7 +1177,9 @@ stroke_path(const PainterStrokeShader &shader, const PainterData &draw,
       cap = PainterAttributeData::square_cap;
       break;
     default:
-      cap = PainterAttributeData::stroking_data_count;
+      cap = (with_anti_aliasing && cp != close_contours) ?
+        PainterAttributeData::flat_cap :
+        PainterAttributeData::stroking_data_count;
     }
 
   edge = PainterAttributeData::edge_closing_edge;

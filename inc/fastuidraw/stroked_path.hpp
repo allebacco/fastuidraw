@@ -81,6 +81,11 @@ public:
       square_cap_point,
 
       /*!
+        The point is for a boundary point of a flat cap of the path
+       */
+      flat_cap_point,
+
+      /*!
         The point is for a boundary point of a sqaure-cap join point.
         These points are for dashed stroking when the point of the join
         is NOT covered by the dash pattern. Their layout of data is the
@@ -151,9 +156,14 @@ public:
       square_cap_point_set,
 
       /*!
-        Select the set of points for rouded caps
+        Select the set of points for rounded caps
        */
       rounded_cap_point_set,
+
+      /*!
+        Select the set of points for flat caps
+       */
+      flat_cap_point_set,
 
       /*!
         Number point set types
@@ -260,11 +270,13 @@ public:
         \code
         m_pre_offset
         \endcode
-      - For those with point_type() being StrokedPath::square_cap_points,
-        the value is given by
+      - For those with point_type() being StrokedPath::square_cap_point,
+        or StrokedPath::flat_cap_point the value is given by
         \code
         m_pre_offset + 0.5 * m_auxilary_offset
         \endcode
+        However, for those of type StrokedPath::flat_cap_point, the
+        value for W should be just thick enough to allow for anti-aliasing
       - For those with point_type() being StrokedPath::miter_join_point
         or StrokedPath::cap_join_point, the value is given by the following
         code

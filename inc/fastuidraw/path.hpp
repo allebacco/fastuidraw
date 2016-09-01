@@ -329,10 +329,17 @@ public:
   prev_interpolator(void);
 
   /*!
-    Returns true if the current path has ended
+    Returns true if the contour has ended
    */
   bool
   ended(void) const;
+
+  /*!
+    Returns true if the contour has ended and it is
+    defined by a single point.
+   */
+  bool
+  is_degenerate(void) const;
 
   /*!
     Return the I'th point of this PathContour.

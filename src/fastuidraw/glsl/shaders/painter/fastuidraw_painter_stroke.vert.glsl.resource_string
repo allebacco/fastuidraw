@@ -1,3 +1,7 @@
+
+const float fastuidraw_stroke_anti_alias_thickness = 1.5;
+
+
 void
 fastuidraw_stroke_compute_offset(in uint point_tag,
                                  in int point_type,
@@ -5,7 +9,8 @@ fastuidraw_stroke_compute_offset(in uint point_tag,
                                  in vec2 pre_offset,
                                  in vec2 auxilary_offset,
                                  in float miter_limit,
-                                 out vec2 offset)
+                                 out vec2 offset,
+                                 inout float stroke_radius)
 {
   if(point_type == fastuidraw_stroke_miter_join_point)
     {
@@ -34,6 +39,29 @@ fastuidraw_stroke_compute_offset(in uint point_tag,
   else if(point_type == fastuidraw_stroke_square_cap_point)
     {
       offset = pre_offset + auxilary_offset;
+    }
+  else if(point_type == fastuidraw_stroke_flat_cap_point)
+    {
+      /* the amount to move tangentially is the anti-alias
+         thickness, where as the amount to move perpindicular
+         is jsut for anti-aliasing thickness
+       */
+
+      vec3 clip_offset0, clip_p;
+      float s0, s1;
+
+      /* move along tangent just enough to anti-alias
+       */
+      clip_p = fastuidraw_item_matrix * vec3(position, 1.0);
+      clip_offset0 = fastuidraw_item_matrix * vec3(auxilary_offset, 0.0);
+      s0 = fastuidraw_painter_local_distance_from_pixel_distance(fastuidraw_stroke_anti_alias_thickness, clip_p, clip_offset0);
+
+      /* move along normal from stroking width
+       */
+      s1 = stroke_radius;
+
+      stroke_radius = 1.0;
+      offset = s0 * auxilary_offset + s1 * pre_offset;
     }
   else if(point_type == fastuidraw_stroke_rounded_cap_point)
     {
@@ -177,6 +205,32 @@ fastuidraw_stroke_compute_offset_pixels(in uint point_tag,
       stroke_radius = 1.0;
       offset = s0 * auxilary_offset + s1 * n;
     }
+  else if(point_type == fastuidraw_stroke_flat_cap_point)
+    {
+      /* the amount to move tangentially is the anti-alias
+         thickness, where as the amount to move perpindicular
+         is jsut for anti-aliasing thickness
+       */
+      vec3 clip_offset0, clip_offset1, clip_p;
+      float s0, s1;
+      vec2 n;
+
+      /* move along tangent just enough to anti-alias
+       */
+      clip_p = fastuidraw_item_matrix * vec3(position, 1.0);
+      clip_offset0 = fastuidraw_item_matrix * vec3(auxilary_offset, 0.0);
+      s0 = fastuidraw_painter_local_distance_from_pixel_distance(fastuidraw_stroke_anti_alias_thickness, clip_p, clip_offset0);
+
+      /* move along normal named number of pixels
+       */
+      clip_p = fastuidraw_item_matrix * vec3(position + s0 * auxilary_offset, 1.0);
+      n = fastuidraw_align_normal_to_screen(clip_p, pre_offset);
+      clip_offset1 = fastuidraw_item_matrix * vec3(n, 0.0);
+      s1 = fastuidraw_painter_local_distance_from_pixel_distance(stroke_radius, clip_p, clip_offset1);
+
+      stroke_radius = 1.0;
+      offset = s0 * auxilary_offset + s1 * n;
+    }
   else if(point_type == fastuidraw_stroke_rounded_cap_point)
     {
       vec2 n = pre_offset, v = vec2(n.y, -n.x);
@@ -225,8 +279,6 @@ fastuidraw_painter_stroke_generic(in bool stroke_width_pixels,
                                   out uint z_add,
                                   out float out_stroking_on_boundary)
 {
-  const float anti_alias_thickness = 1.5;
-
   vec2 p;
   vec2 position, pre_offset, auxilary_offset, offset;
   float distance_from_edge_start, distance_from_contour_start;
@@ -260,7 +312,7 @@ fastuidraw_painter_stroke_generic(in bool stroke_width_pixels,
 
   if(stroking_pass == fastuidraw_stroke_opaque_pass && stroke_width_pixels)
     {
-      stroke_radius = max(stroke_radius - anti_alias_thickness, 0.0);
+      stroke_radius = max(stroke_radius - fastuidraw_stroke_anti_alias_thickness, 0.0);
     }
 
   if(on_boundary != 0)
@@ -277,7 +329,7 @@ fastuidraw_painter_stroke_generic(in bool stroke_width_pixels,
           fastuidraw_stroke_compute_offset(point_tag, point_type, position,
                                            pre_offset, auxilary_offset,
                                            stroke_params.miter_limit,
-                                           offset);
+                                           offset, stroke_radius);
         }
 
       if(stroking_pass == fastuidraw_stroke_opaque_pass && !stroke_width_pixels)
@@ -287,7 +339,7 @@ fastuidraw_painter_stroke_generic(in bool stroke_width_pixels,
 
           clip_p = fastuidraw_item_matrix * vec3(position, 1.0);
           clip_offset = fastuidraw_item_matrix * vec3(offset, 0);
-          r = fastuidraw_painter_local_distance_from_pixel_distance(anti_alias_thickness, clip_p, clip_offset, true);
+          r = fastuidraw_painter_local_distance_from_pixel_distance(fastuidraw_stroke_anti_alias_thickness, clip_p, clip_offset, true);
           stroke_radius = max(stroke_radius - r, 0.0);
         }
 

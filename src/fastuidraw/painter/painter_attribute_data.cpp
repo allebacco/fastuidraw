@@ -459,6 +459,7 @@ set_data(const reference_counted_ptr<const StrokedPath> &path)
 
   d->m_increment_z[square_cap] = path->number_depth(StrokedPath::square_cap_point_set, false);
   d->m_increment_z[rounded_cap] = path->number_depth(StrokedPath::rounded_cap_point_set, false);
+  d->m_increment_z[flat_cap] = path->number_depth(StrokedPath::flat_cap_point_set, false);
 
   grab_attribute_index_data(make_c_array(d->m_attribute_data), attr_loc,
                             path->points(StrokedPath::square_cap_point_set, false),
@@ -471,6 +472,12 @@ set_data(const reference_counted_ptr<const StrokedPath> &path)
                             make_c_array(d->m_index_data), idx_loc,
                             path->indices(StrokedPath::rounded_cap_point_set, false),
                             d->m_attribute_chunks[rounded_cap], d->m_index_chunks[rounded_cap]);
+
+  grab_attribute_index_data(make_c_array(d->m_attribute_data), attr_loc,
+                            path->points(StrokedPath::flat_cap_point_set, false),
+                            make_c_array(d->m_index_data), idx_loc,
+                            path->indices(StrokedPath::flat_cap_point_set, false),
+                            d->m_attribute_chunks[flat_cap], d->m_index_chunks[flat_cap]);
 
 #define GRAB_MACRO(dst_root_name, src_name) do {                        \
                                                                         \
