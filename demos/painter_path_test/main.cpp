@@ -322,7 +322,7 @@ painter_stroke_test(void):
   m_join_labels[PainterEnums::miter_joins] = "miter_joins";
 
   m_cap_labels[PainterEnums::close_contours] = "close_contours";
-  m_cap_labels[PainterEnums::no_caps] = "no_caps";
+  m_cap_labels[PainterEnums::flat_caps] = "flat_caps";
   m_cap_labels[PainterEnums::rounded_caps] = "rounded_caps";
   m_cap_labels[PainterEnums::square_caps] = "square_caps";
 
@@ -1035,7 +1035,7 @@ draw_frame(void)
 
       m_painter->stroke_path(PainterData(&stroke_pen, &st),
                              m_grid_path,
-                             PainterEnums::no_caps, PainterEnums::no_joins,
+                             PainterEnums::flat_caps, PainterEnums::no_joins,
                              false);
     }
 

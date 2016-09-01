@@ -1260,7 +1260,7 @@ stroke_dashed_path(const PainterDashedStrokeShaderSet &shader, const PainterData
          width.
    */
   enum PainterEnums::cap_style c;
-  c = (cp < PainterEnums::number_dashed_closed) ? PainterEnums::close_contours : PainterEnums::no_caps;
+  c = (cp < PainterEnums::number_dashed_closed) ? PainterEnums::close_contours : PainterEnums::flat_caps;
   stroke_path(shader.shader(cp), draw, path, c, js, with_anti_aliasing, call_back);
 }
 
