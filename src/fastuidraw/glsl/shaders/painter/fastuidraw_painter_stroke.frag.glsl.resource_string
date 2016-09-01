@@ -13,8 +13,7 @@ fastuidraw_gl_frag_main(in uint sub_shader,
       float dd, q;
 
       q = 1.0 - abs(fastuidraw_stroking_on_boundary);
-      dd = max(abs(dFdx(q)), abs(dFdy(q)));
-      dd = max(q, dd);
+      dd = max(q, fwidth(q));
       alpha = min(1.0, q / dd);
     }
   else

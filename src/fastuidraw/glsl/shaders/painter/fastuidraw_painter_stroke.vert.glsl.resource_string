@@ -310,6 +310,15 @@ fastuidraw_painter_stroke_generic(in bool stroke_width_pixels,
       fastuidraw_stroking_dashed_offset_computation = uint(0);
     }
 
+  if(point_type == fastuidraw_stroke_flat_cap_point && stroking_pass != fastuidraw_stroke_aa_pass)
+    {
+      /* flat caps are only drawn on the anti-alias pass, by setting
+         on_boundary to be 0, all the points of a flat cap are collapsed
+         to the same point.
+       */
+      on_boundary = 0;
+    }
+
   if(stroking_pass == fastuidraw_stroke_opaque_pass && stroke_width_pixels)
     {
       stroke_radius = max(stroke_radius - fastuidraw_stroke_anti_alias_thickness, 0.0);

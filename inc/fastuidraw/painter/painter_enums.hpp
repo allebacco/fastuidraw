@@ -47,8 +47,8 @@ namespace fastuidraw
     enum cap_style
       {
         flat_caps,      /*!< indicates to stroke with contours of path are not closed and flat caps are added    */
-        rounded_caps,   /*!< indicates to stroke with contours of path are not closed and rounded caps are added */
         square_caps,    /*!< indicates to stroke with contours of path are not closed and square caps are added  */
+        rounded_caps,   /*!< indicates to stroke with contours of path are not closed and rounded caps are added */
         close_contours, /*!< indicates to stroke with contours of path closed */
 
         number_cap_styles /*!< number of cap styles */
